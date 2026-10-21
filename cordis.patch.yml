@@ -1,0 +1,4 @@
+- insert:
+    - id: literature-map
+      name: literature-map-dsh-plugin
+      config: {}

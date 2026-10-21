@@ -1,0 +1,10 @@
+import { createStore } from '../lib/store.mjs';
+import { validateExtraction } from '../lib/domain.mjs';
+import { paper, extraction } from './fixtures.mjs';
+const file = process.argv[2];
+if (!file || !file.includes('.local/')) throw new Error('Only use an explicit .local test data path');
+const store = await createStore(file), p = paper();
+p.title = '离线界面测试材料（合成文本）';
+p.extraction = { ...validateExtraction(extraction(p), p), sourceHash: p.sourceHash, promptVersion: 1 };
+await store.update(s => { s.papers = [p]; s.libraryRevision = 1; });
+console.log('Offline UI fixture seeded; no real papers or model calls.');

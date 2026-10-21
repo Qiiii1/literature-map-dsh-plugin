@@ -1,0 +1,14 @@
+{
+  "name": "literature-map-dsh-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "从本地论文地图探索两个研究方向的结合点。",
+  "main": "./index.mjs",
+  "exports": { ".": "./index.mjs", "./client": "./client.js", "./package.json": "./package.json", "./cordis.patch.yml": "./cordis.patch.yml" },
+  "files": ["index.mjs", "tools.mjs", "client.js", "styles.css", "lib", "cordis.patch.yml", "README.md"],
+  "dsh": { "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-ui-layout", "@deepseek-ai/dsh-client-ui-sidebar"] }, "bundle": { "patch": "./cordis.patch.yml" } },
+  "scripts": { "test": "node --test test/*.test.mjs", "preview": "node scripts/preview.mjs", "verify:papers": "node scripts/verify-papers.mjs", "check": "node scripts/check.mjs" },
+  "engines": { "node": ">=22.13.0" },
+  "dependencies": { "pdfjs-dist": "5.6.205" }
+}

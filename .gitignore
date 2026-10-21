@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build output / packed artifacts
+dist/
+*.tgz
+*.tar.gz
+*.zip
+
+# macOS
+.DS_Store
+._*
+
+# local preview profile and data
+.local/
+literature-map/
+
+# local env / logs
+.env
+.env.*
+*.log
+
+# local development notes and real-model test driver
+/docs/文献地图插件-首版实现方案.md
+/docs/首版验证记录.md
+/scripts/smoke-live.mjs
