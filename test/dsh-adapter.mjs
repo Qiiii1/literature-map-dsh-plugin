@@ -20,6 +20,10 @@ export function apply(ctx) {
         value = { conceptIds: nodes.map(n => n.id), explanation: '离线合成测试：验证分支独立选取与保存。' };
       } else if (input.instruction.startsWith('比较两个研究方向')) {
         value = { explanation: '离线合成测试，不是 AI 研究建议。', cards: [{ title: '离线测试：创意外化与跨专业理解', mechanism: '测试用连接机制，用来验证卡片和两侧证据联动。', inference: '纯粹是合成测试，没有产生真实研究结论。', gap: '真实研究推断需要配置模型后重新分析。', question: '如何验证两个方向的结合点能回到对应原文？', evidenceA: [m.branchA.nodes[0].evidence[0].id], evidenceB: [m.branchB.nodes[0].evidence[0].id] }] };
+      } else if (input.instruction.startsWith('围绕一张研究灵感')) {
+        value = { queries: ['boundary objects co-design', 'design artefacts idea management'], explanation: '离线界面测试：验证可编辑检索词，不是模型生成的研究建议。' };
+      } else if (input.instruction.startsWith('对照研究灵感和候选论文材料')) {
+        value = { summary: '离线协议测试：以下只验证界面、检索接口和引文匹配；没有调用真实模型，文字不构成论文内容判断。', results: m.candidates.slice(0, 4).map((p, i) => ({ id: p.id, kind: ['direct', 'adjacent', 'method'][i % 3], similarity: '离线测试占位说明：验证相似点区域的呈现。', difference: '离线测试占位说明：实际差异需配置模型并阅读论文确认。', takeaway: '离线测试占位说明：这里将展示对当前灵感的启发。', uncertainty: '离线测试不判断论文内容。请用真实模型重新检索、核对摘要或全文。', evidence: [{ passageId: p.passages[0].id, quote: p.passages[0].text.slice(0, 100) }] })) };
       } else if (input.instruction.startsWith('根据用户明确的地图修改要求')) {
         value = { op: { type: 'rename', nodeId: m.graph.nodes[0].id, label: '对话修改测试' } };
       } else throw new Error('Unsupported offline test prompt');

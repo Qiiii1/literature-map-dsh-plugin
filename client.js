@@ -5,7 +5,7 @@ window.__ModuleLoader__.load({
     const colors = ['#526bc4', '#388477', '#ba8049', '#8e6bad', '#517d98', '#9f6a77', '#748151'];
     const categories = { empirical: '实证发现', theoretical: '理论论述', discussion: '作者讨论' };
     const availability = { fulltext: '全文', abstract: '仅摘要', metadata: '仅题录' };
-    const runLabels = { import: '导入论文', analyze: '生成地图', branch: '深化方向', compare: '寻找结合点', edit: '调整地图', supplement: '补充论文' };
+    const runLabels = { import: '导入论文', analyze: '生成地图', branch: '深化方向', compare: '寻找结合点', edit: '调整地图', supplement: '补充论文', 'related-plan': '生成检索词', 'related-search': '查找类似论文', 'related-import': '加入论文库' };
     const researchText = value => String(value ?? '').replace(/\bbranchA\b/gi, '方向 A').replace(/\bbranchB\b/gi, '方向 B').replace(/\binference\b/g, '推断').replace(/\bgap\b/g, '缺口');
     async function api(path, body) {
       const response = await fetch(`/api/literature-map${path}`, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -18,9 +18,9 @@ window.__ModuleLoader__.load({
     function Button({ icon, primary, quiet, small, children, ...props }) {
       return h('button', { type: 'button', ...props, className: `lm-button ${primary ? 'lm-primary' : ''} ${quiet ? 'lm-quiet' : ''} ${small ? 'lm-small' : ''} ${props.className || ''}` }, icon && h(Icon, { name: icon, size: small ? 14 : 16 }), children);
     }
-    function Modal({ title, onClose, children }) {
+    function Modal({ title, onClose, children, wide = false }) {
       R.useEffect(() => { const close = e => { if (e.key === 'Escape') onClose(); }; document.addEventListener('keydown', close); return () => document.removeEventListener('keydown', close); }, []);
-      return h('div', { className: 'lm-overlay', onClick: e => { if (e.target === e.currentTarget) onClose(); } }, h('section', { className: 'lm-modal', role: 'dialog', 'aria-modal': true, 'aria-label': title }, h('header', null, h('h2', null, title), h(Button, { quiet: true, icon: 'close', onClick: onClose, 'aria-label': '关闭' })), children));
+      return h('div', { className: 'lm-overlay', onClick: e => { if (e.target === e.currentTarget) onClose(); } }, h('section', { className: 'lm-modal' + (wide ? ' lm-modal-wide' : ''), role: 'dialog', 'aria-modal': true, 'aria-label': title }, h('header', null, h('h2', null, title), h(Button, { quiet: true, icon: 'close', onClick: onClose, 'aria-label': '关闭' })), children));
     }
     function Field({ label, help, ...props }) { return h('label', { className: 'lm-field' }, h('span', null, label), props.rows ? h('textarea', props) : h('input', props), help && h('small', null, help)); }
     function Empty({ title, children, icon = 'search' }) { return h('div', { className: 'lm-empty' }, h('div', { className: 'lm-empty-icon' }, h(Icon, { name: icon, size: 28 })), h('h3', null, title), h('p', null, children)); }
@@ -38,6 +38,62 @@ window.__ModuleLoader__.load({
         const paper = papers.find(p => p.id === ev.paperId), changed = paper?.sourceHash !== ev.sourceHash;
         return h('article', { className: 'lm-evidence', key: ev.id }, h('div', { className: 'lm-evidence-top' }, h('span', null, String(i + 1).padStart(2, '0')), h('span', null, ev.page ? `PDF 第 ${ev.page} 页` : '摘要')), h('blockquote', null, ev.quote), h('p', { className: 'lm-source-title' }, ev.paperTitle), h('div', { className: 'lm-evidence-footer' }, h('span', { className: 'lm-tag' }, availability[ev.availability] || '原文'), changed ? h('span', { className: 'lm-warning-text' }, '来源有更新') : paper?.path ? h('a', { href: `/api/literature-map/papers/${paper.id}/pdf#page=${ev.page || 1}`, target: '_blank', rel: 'noreferrer' }, '打开原文 ↗') : paper?.url && h('a', { href: paper.url, target: '_blank', rel: 'noreferrer' }, '查看论文 ↗')));
       }));
+    }
+    function RelatedPapers({ comparison, card, state, loading, request, onClose }) {
+      const history = (state.relatedSearches || []).filter(v => v.comparisonId === comparison.id && v.cardId === card.id).toReversed();
+      const [queries, setQueries] = R.useState(history[0]?.queries.join('\n') || card.title);
+      const [selectedId, setSelectedId] = R.useState(history[0]?.id || ''), [checked, setChecked] = R.useState([]);
+      const [pending, setPending] = R.useState(null), [error, setError] = R.useState(''), [notice, setNotice] = R.useState(''), [planNote, setPlanNote] = R.useState('');
+      const result = history.find(v => v.id === selectedId) || history[0], job = state.runs.find(v => v.id === pending?.runId);
+      const start = async (path, body) => {
+        setError(''); setNotice('');
+        try { const value = await request(path, body); setPending({ runId: value.runId, path }); }
+        catch (e) { setError(e.message); }
+      };
+      R.useEffect(() => {
+        if (!job || ['running', 'queued'].includes(job.status)) return;
+        if (job.status !== 'succeeded') setError(job.error || '任务未完成，可以调整后重试；此前结果已保留。');
+        else if (pending.path === '/related/plan') { setQueries(job.result.queries.join('\n')); setPlanNote(job.result.explanation); }
+        else if (pending.path === '/related/search') { setSelectedId(job.result.searchId); setChecked([]); }
+        else if (pending.path === '/related/add') { setChecked([]); setNotice(job.result.added ? `已加入 ${job.result.added} 篇论文。关闭此窗口后点击「更新地图」，再重建方向进行比较。` : '所选论文已经在论文库中。'); }
+        setPending(null);
+      }, [job?.id, job?.status]);
+      const toggle = id => setChecked(list => list.includes(id) ? list.filter(v => v !== id) : [...list, id]);
+      const kinds = { direct: '直接相似', adjacent: '相邻研究', method: '方法参考' };
+      const renderPaper = (p, lead = false) => {
+        const local = state.papers.find(v => v.id === p.id || (p.doi && v.doi?.toLowerCase() === p.doi.toLowerCase()));
+        const pdf = local?.path && local.sourceHash === p.sourceHash ? `/api/literature-map/papers/${local.id}/pdf#page=${p.evidence?.[0]?.page || 1}` : '';
+        return h('article', { className: 'lm-related-paper', key: p.id },
+          h('div', { className: 'lm-related-paper-top' }, h('span', { className: 'lm-related-kind' }, lead ? '待阅读线索' : kinds[p.kind]), h('span', { className: 'lm-tag' }, p.origin === 'local' ? '本地论文库' : 'Crossref'), h('span', { className: 'lm-tag' }, p.availability === 'fulltext' ? '依据：全文片段' : p.availability === 'abstract' ? '依据：仅摘要' : '仅题录 · 未比较内容'), p.usedByIdea && h('span', { className: 'lm-tag' }, '已用于此灵感')),
+          h('h3', null, p.title), h('p', { className: 'lm-related-citation' }, [p.authors, p.year].filter(Boolean).join(' · ')),
+          p.doi && h('p', { className: 'lm-related-doi' }, `DOI: ${p.doi}`),
+          lead ? h('p', { className: 'lm-muted' }, '检索命中了这篇论文的题录。取得摘要或全文前，暂不判断其研究内容及与灵感的差异。') : h(R.Fragment, null,
+            h('dl', { className: 'lm-related-diff' }, h('dt', null, '相似点'), h('dd', null, p.similarity), h('dt', null, '差异与范围'), h('dd', null, p.difference), h('dt', null, '对灵感的启发'), h('dd', null, p.takeaway)),
+            h('p', { className: 'lm-related-uncertainty' }, h('strong', null, '阅读时确认：'), p.uncertainty),
+            h('details', { className: 'lm-related-evidence' }, h('summary', null, '查看比较依据'), ...p.evidence.map((e, i) => h('div', { key: i }, h('small', null, e.page ? `PDF 第 ${e.page} 页` : '摘要片段'), h('blockquote', null, e.quote))))),
+          h('footer', null, pdf && h('a', { href: pdf, target: '_blank', rel: 'noreferrer' }, '打开本地原文 ↗'), p.url && h('a', { href: p.url, target: '_blank', rel: 'noreferrer' }, '查看论文 ↗'),
+            p.origin === 'external' && !p.inLibrary ? h('label', { className: 'lm-related-check' }, h('input', { type: 'checkbox', checked: checked.includes(p.id), disabled: loading, onChange: () => toggle(p.id), 'aria-label': `选择加入论文库：${p.title}` }), '选择加入论文库') : h('span', { className: 'lm-muted' }, '已在论文库')));
+      };
+      return h(Modal, { title: '围绕灵感查找类似论文', wide: true, onClose },
+        h('div', { className: 'lm-related-idea' }, h('span', { className: 'lm-eyebrow' }, '当前研究灵感'), h('strong', null, card.title), h('p', null, card.question)),
+        h('form', { onSubmit: event => { event.preventDefault(); start('/related/search', { comparisonId: comparison.id, cardId: card.id, queries: queries.split('\n').map(q => q.trim()).filter(Boolean) }); } },
+          h(Field, { label: '检索词（每行一组，最多 3 组）', name: 'queries', value: queries, onChange: e => setQueries(e.target.value), disabled: loading || !!pending, required: true, rows: 3, maxLength: 902, help: '可先用 AI 提炼英文检索词，再自行调整。查找本地材料，同时检索 Crossref 题录与可用摘要。' }),
+          planNote && h('p', { className: 'lm-muted' }, planNote),
+          h('div', { className: 'lm-related-query-actions' }, h(Button, { icon: 'spark', disabled: loading || !!pending, onClick: () => start('/related/plan', { comparisonId: comparison.id, cardId: card.id }) }, 'AI 生成检索词'), h(Button, { type: 'submit', primary: true, icon: 'search', disabled: loading || !!pending || !queries.trim() }, '检索并比较'))),
+        pending && h('div', { className: 'lm-related-progress', role: 'status' }, h('span', { className: 'lm-spinner' }), h('span', null, job?.message || '正在准备任务…'), h(Button, { small: true, quiet: true, onClick: () => request('/cancel', { id: pending.runId }).catch(e => setError(e.message)) }, '取消任务')),
+        error && h('p', { className: 'lm-modal-error', role: 'alert' }, error), notice && h('p', { className: 'lm-related-notice', role: 'status' }, notice),
+        !result && !pending && h('p', { className: 'lm-related-intro' }, '围绕这条灵感，看看已有研究做到了哪里、哪些方法可以借鉴。结果先预览，由你选择加入论文库。'),
+        result && h('section', { className: 'lm-related-results', 'aria-label': '类似论文检索结果' },
+          h('header', null, h('h3', null, '本次检索发现'), history.length > 1 && h('label', { className: 'lm-related-history' }, '历史检索', h('select', { value: result.id, disabled: !!pending, onChange: e => { const entry = history.find(v => v.id === e.target.value); setSelectedId(entry.id); setQueries(entry.queries.join('\n')); setChecked([]); } }, ...history.map(v => h('option', { key: v.id, value: v.id }, new Date(v.createdAt).toLocaleString()))))),
+          h('p', { className: 'lm-related-scope' }, `${new Date(result.createdAt).toLocaleString()} · 本地候选 ${result.scope.local} 篇 · 库外候选 ${result.scope.external} 篇 · 提供材料比较 ${result.scope.compared} 篇`),
+          h('p', { className: 'lm-related-scope' }, `检索词：${result.queries.join(' / ')}`),
+          ...result.sources.filter(v => v.status === 'failed').map(v => h('p', { key: v.query, className: 'lm-related-warning' }, `检索「${v.query}」失败：${v.error}。以下只包含成功取得的材料。`)),
+          h('p', { className: 'lm-related-summary' }, result.summary),
+          !result.results.length && h('p', { className: 'lm-muted' }, '本次没有形成有材料依据的相似研究比较。可以调整检索词，或阅读下方题录线索。'),
+          ...result.results.map(p => renderPaper(p)),
+          !!result.leads.length && h('h4', { className: 'lm-related-leads-title' }, '只有题录的待阅读线索'), ...result.leads.map(p => renderPaper(p, true)),
+          h('p', { className: 'lm-related-scope' }, '范围：本地候选片段与本次 Crossref 检索；并非系统综述。暂未找到类似论文，不代表领域中不存在。全文片段与摘要之外的内容仍需阅读确认。')),
+        h('div', { className: 'lm-related-bottom' }, h(Button, { onClick: onClose }, '关闭'), h(Button, { primary: true, icon: 'plus', disabled: loading || !!pending || !checked.length, onClick: () => start('/related/add', { searchId: result.id, paperIds: checked }) }, checked.length ? `加入选中的 ${checked.length} 篇` : '选中论文后加入')));
     }
     function MapCanvas({ graph, selected, setSelected, search, expanded, zoom, setZoom, bridges = [], onBridge, activeBridge, onBackground, resetToken }) {
       const degree = new Map(graph.nodes.map(n => [n.id, 0]));
@@ -179,7 +235,7 @@ window.__ModuleLoader__.load({
           body = h('form', { onSubmit: submitted(async values => { const paths = values.paths.trim().split('\n').map(p => p.trim()).filter(Boolean); await run('/import', paths.every(p => /\.pdf$/i.test(p)) ? { paths } : { folder: values.paths.trim() }); }) }, h('p', { className: 'lm-muted' }, '选择一个论文文件夹，或粘贴 PDF 路径。原始文件保持原样。'), h(Button, { icon: 'folder', onClick: async () => { try { const value = await run('/pick', {}); if (value.path) setModal({ type: 'import', path: value.path }); else setToast('可在下方粘贴文件夹路径。'); } catch {} } }, '选择文件夹'), h(Field, { label: '文件夹或 PDF 路径', name: 'paths', key: modal.path, defaultValue: modal.path || '', required: true, rows: 4, placeholder: '/Users/…/论文库', help: '多个 PDF 路径请逐行填写。支持文字型 PDF，扫描件暂需先做 OCR。' }), footer('导入论文'));
         } else if (modal.type === 'branch') {
           title = '深化一个研究方向';
-          body = h('form', { onSubmit: submitted(async values => { await run('/branch', values); setTab('branches'); }) }, h(Field, { label: '方向名称', name: 'label', defaultValue: node?.label || '', maxLength: 80, placeholder: '例如：跨专业沟通' }), h(Field, { label: '你想进一步探索什么？', name: 'query', required: true, rows: 4, defaultValue: node?.label || '', placeholder: '例如：创意管理工具如何帮助跨专业团队理解彼此的想法？', help: '每个方向都从整个论文库独立筛选。' }), footer('建立探索方向'));
+          body = h('form', { onSubmit: submitted(async values => { await run('/branch', values); setTab('branches'); }) }, h(Field, { label: '方向名称', name: 'label', defaultValue: node?.label || '', maxLength: 80, placeholder: '例如：跨专业沟通' }), h(Field, { label: '你想进一步探索什么？', name: 'query', required: true, rows: 4, defaultValue: node?.label || '', placeholder: '例如：创意管理工具如何帮助跨专业团队理解彼此的想法？', help: '每个方向都从当前整张地图独立筛选。' }), footer('建立探索方向'));
         } else if (modal.type === 'compare') {
           title = '寻找两个方向的结合点';
           body = h('form', { onSubmit: submitted(async values => { await run('/compare', values); setTab('connections'); }) }, ...['a', 'b'].map((name, i) => h('label', { key: name, className: 'lm-field' }, h('span', null, `方向 ${name.toUpperCase()}`), h('select', { name, defaultValue: state.branches[i]?.id, required: true }, ...state.branches.map(b => h('option', { key: b.id, value: b.id }, b.label))))), h(Field, { label: '你的项目条件（可选）', name: 'context', rows: 3, placeholder: '兴趣、已有项目、可用时间，以及希望采用的研究方法…' }), footer('寻找结合点'));
@@ -193,7 +249,10 @@ window.__ModuleLoader__.load({
           title = '补充相关论文';
           body = h('form', { onSubmit: submitted(values => run('/supplement', values)) }, h(Field, { label: '检索词', name: 'query', required: true, defaultValue: node?.aliases[0] || node?.label || '', placeholder: '例如：boundary objects interdisciplinary design' }), h('p', { className: 'lm-muted' }, '检索 Crossref 后，AI 筛选最多 3 篇相关论文。可用摘要自动参与分析；只有题录的论文将标明材料不足。'), footer('检索并补充'));
         }
-        dialog = h(Modal, { title, onClose: closeModal }, error && h('p', { className: 'lm-modal-error', role: 'alert' }, error), body);
+        if (modal.type === 'related') {
+          const comparison = state.connections.find(c => c.id === modal.comparisonId), card = comparison?.cards.find(c => c.id === modal.cardId);
+          dialog = card ? h(RelatedPapers, { key: card.id, comparison, card, state, loading, request: run, onClose: closeModal }) : null;
+        } else dialog = h(Modal, { title, onClose: closeModal }, error && h('p', { className: 'lm-modal-error', role: 'alert' }, error), body);
       }
 
       let center;
@@ -204,7 +263,7 @@ window.__ModuleLoader__.load({
       else if (tab === 'branches') center = h('div', { className: 'lm-content-scroll' }, h('div', { className: 'lm-page-title' }, h('div', null, h('h2', null, '探索方向'), h('p', null, '从同一份论文库，分别向感兴趣的问题深入。')), h(Button, { primary: true, icon: 'plus', disabled: loading || !state.graph.nodes.length, onClick: () => open('branch') }, '新建方向')), !state.branches.length ? h(Empty, { title: '先选择一个值得深入的方向', icon: 'branch' }, '可以点击地图里的关键词，再建立一个探索方向。') : h('div', { className: 'lm-branch-grid' }, ...state.branches.map((b, i) => h('article', { className: 'lm-branch-card', key: b.id }, h('span', { className: 'lm-eyebrow' }, `DIRECTION ${String(i + 1).padStart(2, '0')}`), h('h3', null, b.label), h('p', null, b.query), h('div', { className: 'lm-branch-chips' }, ...b.graph.nodes.slice(0, 5).map(n => h('span', { key: n.id }, n.label))), h('p', { className: 'lm-muted' }, b.explanation), h('footer', null, h('span', null, `${b.graph.nodes.length} 概念 · ${b.graph.edges.length} 条关系`, (b.libraryRevision !== state.libraryRevision || b.graphVersion !== state.graph.version) && h('b', { className: 'lm-warning-text' }, ' · 依据有更新')), h(Button, { small: true, icon: 'arrow', onClick: () => { setBranchId(b.id); setTab('map'); setSelected(null); } }, '查看地图'))))));
       else {
         const comparisons = tab === 'saved' ? state.connections.map(c => ({ ...c, cards: c.cards.filter(v => v.saved) })).filter(c => c.cards.length) : state.connections;
-        center = h('div', { className: 'lm-content-scroll' }, h('div', { className: 'lm-page-title' }, h('div', null, h('h2', null, tab === 'saved' ? '已保存的灵感' : '两个方向，新的可能'), h('p', null, tab === 'saved' ? '保留问题、推断和来源，留给下一次深入阅读。' : '每个结合点都包含两侧论文依据，以及仍需验证的部分。')), tab !== 'saved' && h(Button, { primary: true, icon: 'spark', disabled: loading || state.branches.length < 2, onClick: () => open('compare') }, '寻找结合点')), !comparisons.length && h(Empty, { title: tab === 'saved' ? '遇到值得保留的问题，就收藏在这里' : '建立两个方向后，开始比较', icon: tab === 'saved' ? 'save' : 'link' }, 'AI 会解释具体连接机制，并把推测与已有研究分开呈现。'), ...comparisons.toReversed().map(c => h('section', { key: c.id, id: 'lm-comparison-' + c.id, className: 'lm-comparison' + (activeComparison === c.id ? ' lm-comparison-active' : '') }, h('div', { className: 'lm-comparison-label' }, h('span', null, c.labelA), h(Icon, { name: 'link', size: 14 }), h('span', null, c.labelB), (c.libraryRevision !== state.libraryRevision || c.graphVersion !== state.graph.version) && h('b', { className: 'lm-warning-text' }, '来源有更新')), h('details', { className: 'lm-comparison-summary' }, h('summary', null, '比较依据与适用范围'), h('p', { className: 'lm-muted' }, researchText(c.explanation))), !c.cards.length && h('p', null, '现有材料还不足以形成可信的结合点，可以补充论文后再比较。'), ...c.cards.map(card => h('article', { className: 'lm-connection-card', key: card.id }, h('div', { className: 'lm-connection-top' }, h('span', { className: 'lm-hypothesis-tag' }, h(Icon, { name: 'spark', size: 12 }), '待验证的研究灵感'), h(Button, { small: true, quiet: true, icon: card.saved ? 'check' : 'save', onClick: () => action('/save', { comparisonId: c.id, cardId: card.id, saved: !card.saved }) }, card.saved ? '已保存' : '保存灵感')), h('h3', null, card.title), h('p', null, researchText(card.mechanism)), h('div', { className: 'lm-question' }, h('span', null, '可以继续研究的问题'), h('strong', null, researchText(card.question))), h('details', null, h('summary', null, '推断过程与待验证之处'), h('h4', null, '推断过程'), h('p', null, researchText(card.inference)), h('h4', null, '待验证之处'), h('p', null, researchText(card.gap))), h('footer', null, h(Button, { small: true, icon: 'book', onClick: () => setSelected({ type: 'evidence', label: c.labelA, items: card.evidenceA }) }, '方向 A 的依据'), h(Button, { small: true, icon: 'book', onClick: () => setSelected({ type: 'evidence', label: c.labelB, items: card.evidenceB }) }, '方向 B 的依据')))))));
+        center = h('div', { className: 'lm-content-scroll' }, h('div', { className: 'lm-page-title' }, h('div', null, h('h2', null, tab === 'saved' ? '已保存的灵感' : '两个方向，新的可能'), h('p', null, tab === 'saved' ? '保留问题、推断和来源，留给下一次深入阅读。' : '每个结合点都包含两侧论文依据，以及仍需验证的部分。')), tab !== 'saved' && h(Button, { primary: true, icon: 'spark', disabled: loading || state.branches.length < 2, onClick: () => open('compare') }, '寻找结合点')), !comparisons.length && h(Empty, { title: tab === 'saved' ? '遇到值得保留的问题，就收藏在这里' : '建立两个方向后，开始比较', icon: tab === 'saved' ? 'save' : 'link' }, 'AI 会解释具体连接机制，并把推测与已有研究分开呈现。'), ...comparisons.toReversed().map(c => h('section', { key: c.id, id: 'lm-comparison-' + c.id, className: 'lm-comparison' + (activeComparison === c.id ? ' lm-comparison-active' : '') }, h('div', { className: 'lm-comparison-label' }, h('span', null, c.labelA), h(Icon, { name: 'link', size: 14 }), h('span', null, c.labelB), (c.libraryRevision !== state.libraryRevision || c.graphVersion !== state.graph.version) && h('b', { className: 'lm-warning-text' }, '来源有更新')), h('details', { className: 'lm-comparison-summary' }, h('summary', null, '比较依据与适用范围'), h('p', { className: 'lm-muted' }, researchText(c.explanation))), !c.cards.length && h('p', null, '现有材料还不足以形成可信的结合点，可以补充论文后再比较。'), ...c.cards.map(card => h('article', { className: 'lm-connection-card', key: card.id }, h('div', { className: 'lm-connection-top' }, h('span', { className: 'lm-hypothesis-tag' }, h(Icon, { name: 'spark', size: 12 }), '待验证的研究灵感'), h(Button, { small: true, quiet: true, icon: card.saved ? 'check' : 'save', onClick: () => action('/save', { comparisonId: c.id, cardId: card.id, saved: !card.saved }) }, card.saved ? '已保存' : '保存灵感')), h('h3', null, card.title), h('p', null, researchText(card.mechanism)), h('div', { className: 'lm-question' }, h('span', null, '可以继续研究的问题'), h('strong', null, researchText(card.question))), h('details', null, h('summary', null, '推断过程与待验证之处'), h('h4', null, '推断过程'), h('p', null, researchText(card.inference)), h('h4', null, '待验证之处'), h('p', null, researchText(card.gap))), h('footer', null, h(Button, { small: true, primary: true, icon: 'search', disabled: loading, onClick: () => open('related', { comparisonId: c.id, cardId: card.id }) }, (state.relatedSearches || []).some(v => v.comparisonId === c.id && v.cardId === card.id) ? '查看类似论文' : '查找类似论文'), h(Button, { small: true, icon: 'book', onClick: () => setSelected({ type: 'evidence', label: c.labelA, items: card.evidenceA }) }, '方向 A 的依据'), h(Button, { small: true, icon: 'book', onClick: () => setSelected({ type: 'evidence', label: c.labelB, items: card.evidenceB }) }, '方向 B 的依据')))))));
       }
 
       let detail;
