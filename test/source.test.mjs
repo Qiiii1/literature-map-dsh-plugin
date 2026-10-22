@@ -19,5 +19,6 @@ test('Crossref records distinguish abstract from metadata, strip markup, and ded
   const signal = new AbortController().signal;
   const results = await crossrefSearch('public research query', signal, async url => { requested = url; return { ok: true, json: async () => ({ message: { items: [{ DOI: '10.1000/A', title: ['<i>Title A</i>'], abstract: `<jats:p>${'Research text '.repeat(20)}</jats:p>` }, { DOI: '10.1000/B', title: ['Title B'] }] } }) }; });
   assert.equal(requested.hostname, 'api.crossref.org'); assert.equal(results[0].title, 'Title A'); assert.equal(results[0].availability, 'abstract'); assert.equal(results[1].availability, 'metadata'); assert.equal(results[1].passages.length, 0);
+  assert.equal(requested.searchParams.get('query'), 'public research query');
   assert.equal(deduplicatePapers(results, [{ title: 'TITLE A', doi: '10.1000/a' }]).length, 1);
 });

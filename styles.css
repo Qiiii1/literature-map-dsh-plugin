@@ -60,3 +60,45 @@
 .lm-bridge.lm-bridge-active path:first-child{stroke:#c98f3c;stroke-width:2.8;opacity:1}
 @media(max-width:1250px){.lm-workbench{grid-template-columns:176px minmax(340px,1fr) 272px}}
 @media(max-width:950px){.lm-bridge-preview{right:10px;top:10px;width:min(300px,calc(100% - 20px))}}
+
+/* Inspiration-focused literature discovery */
+.lm-modal.lm-modal-wide{width:min(820px,95vw)}
+.lm-related-idea{padding:17px 20px;background:#f5f7fc;border:1px solid #e3e9f3;border-radius:10px;display:flex;flex-direction:column;gap:8px}
+.lm-related-idea strong{font-size:16px;font-weight:500;line-height:1.6;color:#536787}
+.lm-related-idea p{font-size:12px;line-height:1.9;color:#8794a8}
+.lm-related-query-actions,.lm-related-progress,.lm-related-paper-top,.lm-related-paper footer,.lm-related-bottom{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.lm-related-query-actions{justify-content:flex-end;margin:14px 0 22px}
+.lm-related-intro{padding:20px 0;font-size:12px;color:#8a97aa;line-height:1.9}
+.lm-related-progress{padding:12px 14px;background:#f2f5fc;color:#7283a6;border-radius:8px;font-size:11px;margin:18px 0}
+.lm-related-progress>span:nth-child(2){flex:1;min-width:160px}
+.lm-related-notice,.lm-related-warning{font-size:12px;line-height:1.8;padding:12px 15px;border-radius:7px;margin:14px 0!important}
+.lm-related-notice{background:#eef6f2;color:#527d6b}
+.lm-related-warning{background:#fff8eb;color:#957132}
+.lm-related-results{padding-top:24px;border-top:1px solid var(--lm-line)}
+.lm-related-results>header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.lm-related-results>header h3{font-size:17px;font-weight:500;color:#60718d}
+.lm-related-scope{font-size:10px;color:#8d99ac;line-height:1.9;margin:8px 0!important;overflow-wrap:anywhere}
+.lm-related-summary{font-size:12px;line-height:2;color:#697d9e;margin:15px 0 20px!important}
+.lm-related-history{display:flex;gap:8px;align-items:center;font-size:10px;color:#8592a7}
+.lm-related-history select{padding:6px;border:1px solid #e0e6f0;border-radius:6px;background:#fff;max-width:210px;color:#6e7d95}
+.lm-related-paper{padding:20px;margin:14px 0;border:1px solid #e1e7f1;border-radius:10px;background:#fff}
+.lm-related-kind{color:#637bb1;background:#edf2fc;font-size:10px;padding:4px 8px;border-radius:5px}
+.lm-related-paper h3{font-size:16px;font-weight:500;line-height:1.6;margin:13px 0 7px;color:#495c7a;overflow-wrap:anywhere}
+.lm-related-citation,.lm-related-doi{font-size:10px;line-height:1.8;color:#929daf;margin:5px 0!important;overflow-wrap:anywhere}
+.lm-related-diff{display:grid;grid-template-columns:82px minmax(0,1fr);gap:10px 14px;margin:18px 0;font-size:12px;line-height:1.9}
+.lm-related-diff dt{color:#6c7fa3;font-weight:500}
+.lm-related-diff dd{margin:0;color:#7f8b9e;overflow-wrap:anywhere}
+.lm-related-uncertainty{padding:12px 14px;background:#f8f9fc;border-radius:7px;font-size:11px;line-height:1.9;color:#8a94a6}
+.lm-related-uncertainty strong{font-weight:500;color:#7889a6}
+.lm-related-evidence{margin-top:15px;font-size:11px;color:#7d8da6}
+.lm-related-evidence summary{cursor:pointer}
+.lm-related-evidence small{display:block;margin-top:15px;font-size:10px;color:#98a3b3}
+.lm-related-evidence blockquote{font-size:11px;line-height:1.9;padding-left:12px;border-left:2px solid #d6deee;margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.lm-related-paper footer{justify-content:flex-start;margin-top:17px;padding-top:14px;border-top:1px solid #edf0f6;font-size:11px}
+.lm-related-paper footer>a{color:#748ab3;text-decoration:none}
+.lm-related-check{margin-left:auto;display:flex;gap:7px;align-items:center;color:#7488ae;cursor:pointer}
+.lm-related-check input{accent-color:#748ac0}
+.lm-related-leads-title{font-size:13px;font-weight:500;color:#8c97a9;margin-top:25px}
+.lm-related-bottom{position:sticky;bottom:-25px;background:#fff;justify-content:flex-end;border-top:1px solid #e5eaf3;margin:24px -4px -4px;padding:17px 4px 4px}
+.lm-connection-card footer{flex-wrap:wrap}
+@media(max-width:650px){.lm-modal.lm-modal-wide{padding:20px 16px}.lm-related-diff{grid-template-columns:1fr;gap:4px}.lm-related-diff dd{margin-bottom:12px}.lm-related-paper{padding:16px}.lm-related-check{margin-left:0}.lm-related-bottom{bottom:-20px}}
